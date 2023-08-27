@@ -33,6 +33,8 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
     dispatch_queue_t _dispatchQueue;
     
     LTBTLESerialTransporterConnectionBlock _connectionBlock;
+    LTBTLESerialTransporterDisconnectBlock _disconnectBlock;
+
     LTBTLEReadCharacteristicStream* _inputStream;
     LTBTLEWriteCharacteristicStream* _outputStream;
     
@@ -68,13 +70,13 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 
 -(void)dealloc
 {
-    [self disconnect:_selectedAdapter];
+    [self disconnect:_selectedAdapter withCompletionBlock:nil];
 }
 
 #pragma mark -
 #pragma mark API
 
--(void)startScanning:(id<LTBTLESerialTransporterDelegate>)delegate {
+-(void)startScanning:(id<LTBTLESerialTransporterScanDelegate>)delegate {
     self.delegate = delegate;
     [_possibleAdapters removeAllObjects];
     _manager = [[CBCentralManager alloc] initWithDelegate:self queue:_dispatchQueue options:nil];
@@ -100,8 +102,9 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
     [_manager connectPeripheral:_selectedAdapter options:nil];
 }
 
--(void)disconnect:(nonnull CBPeripheral *)peripheral
+-(void)disconnect:(nonnull CBPeripheral *)peripheral withCompletionBlock:(nullable LTBTLESerialTransporterDisconnectBlock)block
 {
+    _disconnectBlock = block;
     [_manager cancelPeripheralConnection:peripheral];
     [self disconnect];
 }
@@ -176,8 +179,8 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
     
     LOG( @"DISCOVER %@ (RSSI=%@) w/ advertisement %@", peripheral, RSSI, advertisementData );
     [_possibleAdapters addObject:peripheral];
-    if(self.delegate != nil && [self.delegate respondsToSelector:@selector(didFoundPeripheral:)]) {
-        [self.delegate didFoundPeripheral:_possibleAdapters];
+    if(self.delegate != nil && [self.delegate respondsToSelector:@selector(didFoundPeripherals:)]) {
+        [self.delegate didFoundPeripherals:_possibleAdapters];
     }
 }
 
@@ -196,10 +199,21 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 -(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
     LOG( @"Did disconnect %@: %@", peripheral, error );
+    if (error != nil) {
+        if(_disconnectBlock != nil){
+            _disconnectBlock(NO, error);
+            _disconnectBlock = nil;
+        }
+        return;
+    }
     if ( peripheral == _selectedAdapter )
     {
         [_inputStream close];
         [_outputStream close];
+        if(_disconnectBlock != nil){
+            _disconnectBlock(YES, nil);
+            _disconnectBlock = nil;
+        }
     }
 }
 
