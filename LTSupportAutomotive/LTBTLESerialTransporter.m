@@ -24,7 +24,7 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
     CBCentralManager* _manager;
     NSUUID* _identifier;
     NSArray<CBUUID*>* _serviceUUIDs;
-    CBPeripheral* _adapter;
+    CBPeripheral* _selectedAdapter;
     CBCharacteristic* _reader;
     CBCharacteristic* _writer;
     
@@ -68,34 +68,42 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 
 -(void)dealloc
 {
-    [self disconnect];
+    [self disconnect:_selectedAdapter];
 }
 
 #pragma mark -
 #pragma mark API
 
--(void)connectWithBlock:(LTBTLESerialTransporterConnectionBlock)block
-{
-    _connectionBlock = block;
-    
+-(void)startScanning:(id<LTBTLESerialTransporterDelegate>)delegate {
+    self.delegate = delegate;
+    [_possibleAdapters removeAllObjects];
     _manager = [[CBCentralManager alloc] initWithDelegate:self queue:_dispatchQueue options:nil];
 }
 
--(void)disconnect
-{
-    [self stopUpdatingSignalStrength];
-    
-    [_inputStream close];
-    [_outputStream close];
-    
-    if ( _adapter )
-    {
-        [_manager cancelPeripheralConnection:_adapter];
+-(void)stopScanning {
+    if(_manager.isScanning == YES) {
+        [_manager stopScan];
     }
+}
+
+-(void)connect:(nonnull CBPeripheral *) peripheral withConnectionBlock:(LTBTLESerialTransporterConnectionBlock)block;
+{
+    _connectionBlock = block;
+    if(self.isConnected == YES) {
+        [self disconnect];
+    }
+    self.isConnected = NO;
     
-    [_possibleAdapters enumerateObjectsUsingBlock:^(CBPeripheral * _Nonnull peripheral, NSUInteger idx, BOOL * _Nonnull stop) {
-        [self->_manager cancelPeripheralConnection:peripheral];
-    }];
+    _selectedAdapter = peripheral;
+    _selectedAdapter.delegate = self;
+    LOG( @"Started connecting to %@", _selectedAdapter );
+    [_manager connectPeripheral:_selectedAdapter options:nil];
+}
+
+-(void)disconnect:(nonnull CBPeripheral *)peripheral
+{
+    [_manager cancelPeripheralConnection:peripheral];
+    [self disconnect];
 }
 
 -(void)startUpdatingSignalStrengthWithInterval:(NSTimeInterval)interval
@@ -116,12 +124,12 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 
 -(void)onSignalStrengthUpdateTimerFired:(NSTimer*)timer
 {
-    if ( _adapter.state != CBPeripheralStateConnected )
+    if (_selectedAdapter == nil || _selectedAdapter.state != CBPeripheralStateConnected )
     {
         return;
     }
     
-    [_adapter readRSSI];
+    [_selectedAdapter readRSSI];
 }
 
 #pragma mark -
@@ -134,14 +142,14 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
         return;
     }
     NSArray<CBPeripheral*>* peripherals = [_manager retrieveConnectedPeripheralsWithServices:_serviceUUIDs];
-    if ( peripherals.count )
+    if ( peripherals.count && _selectedAdapter != nil)
     {
-        LOG( @"CONNECTED (already) %@", _adapter );
-        if ( _adapter.state == CBPeripheralStateConnected )
+        LOG( @"CONNECTED (already) %@", _selectedAdapter );
+        if ( _selectedAdapter.state == CBPeripheralStateConnected )
         {
-            _adapter = peripherals.firstObject;
-            _adapter.delegate = self;
-            [self peripheral:_adapter didDiscoverServices:nil];
+            _selectedAdapter = peripherals.firstObject;
+            _selectedAdapter.delegate = self;
+            [self peripheral:_selectedAdapter didDiscoverServices:nil];
         }
         else
         {
@@ -161,25 +169,16 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
         [_manager scanForPeripheralsWithServices:nil options:nil];
         return;
     }
-    
-    _adapter = peripherals.firstObject;
-    _adapter.delegate = self;
-    LOG( @"DISCOVER (cached) %@", _adapter );
-    [_manager connectPeripheral:_adapter options:nil];
 }
 
 -(void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral*)peripheral advertisementData:(NSDictionary<NSString *,id> *)advertisementData RSSI:(NSNumber *)RSSI
 {
-    if ( _adapter )
-    {
-        LOG( @"[IGNORING] DISCOVER %@ (RSSI=%@) w/ advertisement %@", peripheral, RSSI, advertisementData );
-        return;
-    }
     
     LOG( @"DISCOVER %@ (RSSI=%@) w/ advertisement %@", peripheral, RSSI, advertisementData );
     [_possibleAdapters addObject:peripheral];
-    peripheral.delegate = self;
-    [_manager connectPeripheral:peripheral options:nil];
+    if(self.delegate != nil && [self.delegate respondsToSelector:@selector(didFoundPeripheral:)]) {
+        [self.delegate didFoundPeripheral:_possibleAdapters];
+    }
 }
 
 -(void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral
@@ -191,12 +190,13 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 -(void)centralManager:(CBCentralManager *)central didFailToConnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
     LOG( @"Failed to connect %@: %@", peripheral, error );
+    [self connectionAttemptFailed:error];
 }
 
 -(void)centralManager:(CBCentralManager *)central didDisconnectPeripheral:(CBPeripheral *)peripheral error:(NSError *)error
 {
     LOG( @"Did disconnect %@: %@", peripheral, error );
-    if ( peripheral == _adapter )
+    if ( peripheral == _selectedAdapter )
     {
         [_inputStream close];
         [_outputStream close];
@@ -220,12 +220,6 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 
 -(void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error
 {
-    if ( _adapter )
-    {
-        LOG( @"[IGNORING] SERVICES %@: %@", peripheral, peripheral.services );
-        return;
-    }
-    
     if ( error )
     {
         LOG( @"Could not discover services: %@", error );
@@ -239,13 +233,6 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
         [_manager cancelPeripheralConnection:peripheral];
         [_possibleAdapters removeObject:peripheral];
         return;
-    }
-    
-    _adapter = peripheral;
-    _adapter.delegate = self;
-    if ( _manager.isScanning )
-    {
-        [_manager stopScan];
     }
     
     CBService* atCommChannel = peripheral.services.firstObject;
@@ -278,7 +265,7 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
     }
     else
     {
-        [self connectionAttemptFailed];
+        [self connectionAttemptFailed:[NSError errorWithDomain:@"com.bluetooth.scan" code:101 userInfo:@{NSLocalizedDescriptionKey : @"Not a valid OBD2 device."}]];
     }
 }
 
@@ -313,18 +300,36 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 #pragma mark -
 #pragma mark Helpers
 
+-(void)disconnect {
+    [self stopUpdatingSignalStrength];
+    
+    [_inputStream close];
+    [_outputStream close];
+    _inputStream = nil;
+    _outputStream = nil;
+    _reader = nil;
+    _writer = nil;
+    [_possibleAdapters enumerateObjectsUsingBlock:^(CBPeripheral * _Nonnull eachPeripheral, NSUInteger idx, BOOL * _Nonnull stop) {
+        [self->_manager cancelPeripheralConnection:eachPeripheral];
+    }];
+}
+
 -(void)connectionAttemptSucceeded
 {
+    self.isConnected = YES;
     _inputStream = [[LTBTLEReadCharacteristicStream alloc] initWithCharacteristic:_reader];
     _outputStream = [[LTBTLEWriteCharacteristicStream alloc] initToCharacteristic:_writer];
-    _connectionBlock( _inputStream, _outputStream );
+    _connectionBlock( _inputStream, _outputStream, nil);
     _connectionBlock = nil;
 }
 
--(void)connectionAttemptFailed
+-(void)connectionAttemptFailed:(NSError *)error
 {
-    _connectionBlock( nil, nil );
-    _connectionBlock = nil;
+    self.isConnected = NO;
+    if(_connectionBlock != nil) {
+        _connectionBlock( nil, nil, error);
+        _connectionBlock = nil;
+    }
 }
 
 @end

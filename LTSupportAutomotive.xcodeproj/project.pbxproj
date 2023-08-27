@@ -259,10 +259,10 @@
 		70DFA8981D9A6DE3004ECF98 /* Serial Transporter */ = {
 			isa = PBXGroup;
 			children = (
+				70DFA84C1D9A6DDB004ECF98 /* LTBTLESerialTransporter.h */,
 				70DFA8681D9A6DDB004ECF98 /* LTBTLESerialTransporter.m */,
 				70DFA84A1D9A6DDB004ECF98 /* LTBTLEReadCharacteristicStream.h */,
 				70DFA84B1D9A6DDB004ECF98 /* LTBTLEReadCharacteristicStream.m */,
-				70DFA84C1D9A6DDB004ECF98 /* LTBTLESerialTransporter.h */,
 				70DFA84D1D9A6DDB004ECF98 /* LTBTLEWriteCharacteristicStream.h */,
 				70DFA84E1D9A6DDB004ECF98 /* LTBTLEWriteCharacteristicStream.m */,
 			);
