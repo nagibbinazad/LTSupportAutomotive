@@ -178,9 +178,11 @@ NSString* const LTBTLESerialTransporterDidUpdateSignalStrength = @"LTBTLESerialT
 {
     
     LOG( @"DISCOVER %@ (RSSI=%@) w/ advertisement %@", peripheral, RSSI, advertisementData );
-    [_possibleAdapters addObject:peripheral];
-    if(self.delegate != nil && [self.delegate respondsToSelector:@selector(didFoundPeripherals:)]) {
-        [self.delegate didFoundPeripherals:_possibleAdapters];
+    if ([_possibleAdapters containsObject:peripheral] == NO) {
+        [_possibleAdapters addObject:peripheral];
+        if(self.delegate != nil && [self.delegate respondsToSelector:@selector(didFoundPeripherals:)]) {
+            [self.delegate didFoundPeripherals:_possibleAdapters];
+        }
     }
 }
 
