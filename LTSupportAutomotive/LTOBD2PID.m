@@ -446,7 +446,14 @@
                 break;
         }
 
-
+//        for (int i=0; i<=5; i++) {
+//            
+//            LTOBD2DTC* dtc = [LTOBD2DTC dtcWithCode:[NSString stringWithFormat:@"P11%d%d", arc4random_uniform(9), arc4random_uniform(9)] ecu:@"7E8"];
+//            if ( dtc )
+//            {
+//                [ma addObject:dtc];
+//            }
+//        }
         for ( NSUInteger n = 0; n < codeBytes.count / 2; ++n )
         {
             uint A = codeBytes[2*n+0].unsignedIntValue;
