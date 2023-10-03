@@ -66,7 +66,7 @@ static NSDictionary<NSString*,NSString*>* LTOBD2DTCEcuDictionary;
 
 -(NSString*)explanation
 {
-    NSString* key = [NSString stringWithFormat:@"OBD2_DTC_%@", _code];
+    NSString* key = [NSString stringWithFormat:@"%@", _code];
     return LTStringLookupOrNil( key ) ?: LTStringLookupWithPlaceholder( @"OBD2_DTC_UNKNOWN", @"OBD2_DTC_UNKNOWN" );
 }
 
