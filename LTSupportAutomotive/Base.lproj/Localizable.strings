@@ -1560,6 +1560,7 @@
 "P0294" = "Cylinder 12 Injector Circuit Low";
 "P0295" = "Cylinder 12 Injector Circuit High";
 "P0296" = "Cylinder 12 Contribution/Balance Fault";
+"P0299" = "Underboost condition";
 "P0300" = "Random/Multiple Cylinder Misfire Detected";
 "P0301" = "Cylinder 1 Misfire Detected";
 "P0302" = "Cylinder 2 Misfire Detected";
@@ -1673,6 +1674,7 @@
 "P0453" = "Evaporative Emission Control System Pressure Sensor High Input";
 "P0454" = "Evaporative Emission Control System Pressure Sensor Intermittent";
 "P0455" = "Evaporative Emission Control System Tank Detected (gross leak)";
+"P0456" = "Evaporative Emission Control System Tank Detected (small leak)";
 "P0460" = "Fuel Level Sensor Circuit Malfunction";
 "P0461" = "Fuel Level Sensor Circuit Range/Performance";
 "P0462" = "Fuel level Sensor Circuit Low Input";
@@ -1699,6 +1701,7 @@
 "P0483" = "Cooling Fan Rationality Check Malfunction";
 "P0484" = "Cooling Fan Circuit Over Current";
 "P0485" = "Cooling Fan Power/Ground Circuit Malfunction";
+"P0496" = "EVAP Flow During Non-Purge Condition";
 "P0500" = "Vehicle Speed Sensor Malfunction";
 "P0501" = "Vehicle Speed Sensor Range/Performance";
 "P0502" = "Vehicle Speed Sensor Circuit Low Input";
@@ -2717,6 +2720,12 @@
 "P1916" = "High Clutch Drum Speed Sensor Malfunction";
 "P1917" = "High Clutch Drum Speed Sensor Intermittent";
 "P1918" = "Transmission Range Display Circuit Malfunction";
+
+
+"P2002" = "Diesel Particulate Filter Efficiency Below Threshold B1";
+"P2003" = "Diesel Particulate Filter Efficiency Below Threshold B2";
+
+
 "C1091" = "Speed Wheel Sensor All Coherency Failure";
 "C1095" = "ABS Hydraulic Pump Motor Circuit Failure";
 "C1096" = "ABS Hydraulic Pump Motor Circuit Open";

@@ -182,18 +182,25 @@ static const CGFloat animationDuration = 0.15;
     _incomingBytesNotification.alpha = 0.3;
     _outgoingBytesNotification.alpha = 0.3;
 
+    NSInputStream *inputStream = nil;
+    NSOutputStream *outputStream = nil;
+    [NSStream getStreamsToHostWithName:@"192.168.0.102" port:35000 inputStream:&inputStream outputStream:&outputStream];
     _transporter = [LTBTLESerialTransporter transporterWithIdentifier:nil serviceUUIDs:_serviceUUIDs];
-    [_transporter connectWithBlock:^(NSInputStream * _Nullable inputStream, NSOutputStream * _Nullable outputStream) {
-
-        if ( !inputStream )
-        {
-            LOG( @"Could not connect to OBD2 adapter" );
-            return;
-        }
-
-        self->_obd2Adapter = [LTOBD2AdapterELM327 adapterWithInputStream:inputStream outputStream:outputStream];
-        [self->_obd2Adapter connect];
-    }];
+    
+    self->_obd2Adapter = [LTOBD2AdapterELM327 adapterWithInputStream:inputStream outputStream:outputStream];
+    [self->_obd2Adapter connect];
+    
+//    [_transporter connectWithBlock:^(NSInputStream * _Nullable inputStream, NSOutputStream * _Nullable outputStream) {
+//
+//        if ( !inputStream )
+//        {
+//            LOG( @"Could not connect to OBD2 adapter" );
+//            return;
+//        }
+//
+//        self->_obd2Adapter = [LTOBD2AdapterELM327 adapterWithInputStream:inputStream outputStream:outputStream];
+//        [self->_obd2Adapter connect];
+//    }];
 
     [_transporter startUpdatingSignalStrengthWithInterval:1.0];
 }
@@ -201,7 +208,7 @@ static const CGFloat animationDuration = 0.15;
 -(void)disconnect
 {
     [_obd2Adapter disconnect];
-    [_transporter disconnect];
+    //[_transporter disconnect];
 }
 
 #pragma mark -
@@ -303,7 +310,7 @@ static const CGFloat animationDuration = 0.15;
     [_obd2Adapter transmitMultipleCommands:@[ rpm, speed, temp ] completionHandler:^(NSArray<LTOBD2Command *> * _Nonnull commands) {
     
         dispatch_async( dispatch_get_main_queue(), ^{
-
+            NSLog(@"$#$Speed: %@",rpm.rawResponse.firstObject);
             self->_rpmLabel.text = rpm.formattedResponse;
             self->_speedLabel.text = speed.formattedResponse;
             self->_tempLabel.text = temp.formattedResponse;
